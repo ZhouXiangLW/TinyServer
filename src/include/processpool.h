@@ -3,6 +3,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <bits/signum.h>
 #include <sys/epoll.h>
 #include <sys/wait.h>
 #include <stdio.h>
@@ -84,6 +85,7 @@ static void sig_handler(int sig)
 {
     int save_errno = errno;
     int msg = sig;
+    printf("sig is %d\n", sig);
     send(sig_pipefd[1], (char*)&msg, 1, 0);
     errno = save_errno;
 }
@@ -97,7 +99,7 @@ static void addsig(int sig, void(handler)(int), bool restart = true)
         sa.sa_flags |= SA_RESTART;
     }
     sigfillset(&sa.sa_mask);
-    assert(sigaction(sig, &sa, NULL) != -1);
+    sigaction(sig, &sa, NULL);
 }
 
 static int setnoblocking(int fd)
@@ -211,16 +213,17 @@ void processpool<T>::run_parent()
 
                 sub_process_counter = (i + 1) % m_process_number;
                 send(m_sub_process[i].m_pipe_fd[0],(char *)&new_conn ,sizeof(new_conn), 0);
-                printf("send request to child %d", i);
+                printf("send request to child %d\n", i);
             } else if (sockfd == sig_pipefd[0] && events[i].events & EPOLLIN) {
                 int sig;
                 char signals[1024];
                 ret = recv(sig_pipefd[0], signals, sizeof(signals), 0);
+                printf("Handle signals : %d, %s\n", ret, signals);
                 if (ret < 0) {
                     continue;
                 } else {
                     for (int i = 0; i < ret; i++) {
-                        switch (signals[1]) {
+                        switch (signals[i]) {
                             case SIGCHLD: {
                                 // 子进程终止时，向父进程发送该信号
                                 pid_t pid;
@@ -228,7 +231,7 @@ void processpool<T>::run_parent()
                                 while ((pid = waitpid(-1, &stat, WNOHANG)) > 0) {
                                     for (int i = 0; i < m_process_number; i++) {
                                         if (m_sub_process[i].m_pid == pid) {
-                                            printf("child %d joined!", i);
+                                            printf("child %d joined!\n", i);
                                             close(m_sub_process[i].m_pipe_fd[0]);
                                             m_sub_process[i].m_pid = -1;
                                         }
@@ -239,20 +242,19 @@ void processpool<T>::run_parent()
                                 for (int i = 0; i < m_process_number; i++) {
                                     if (m_sub_process[i].m_pid != -1) {
                                         m_stop = false;
-                                        continue;    // TODO: 不确定
                                     }
                                 }
                             }
                             case SIGTERM:
                             case SIGINT: {
-                                printf("kill all the child now!");
+                                printf("kill all the child now!\n");
                                 for (int i = 0; i < m_process_number; i++) {
                                     int pid = m_sub_process[i].m_pid;
-                                    if (pid == -1) {
-                                        kill(pid, SIGTERM);
+                                    if (pid != -1) {
+                                        kill(pid, SIGINT);
                                     }
                                 }
-                                break;
+                                printf("All children had been killed\n");
                             }
                             default: break;
                         }
@@ -284,7 +286,7 @@ void processpool<T>::run_child()
     while (!m_stop) {
         number = epoll_wait(m_epoll_fd, events, MAX_EVENT_NUMBER, -1);
         if (number < 0 && errno != EINTR) {
-            printf("epoll failure!");
+            printf("epoll failure!\n");
             break;
         }
         for (int i = 0; i < number; i++) {

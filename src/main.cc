@@ -3,8 +3,6 @@
 
 #include <netinet/in.h>
 
-
-
 int main()
 {
     int listenfd = socket(PF_INET, SOCK_STREAM, 0);
@@ -19,6 +17,7 @@ int main()
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     
     ret = bind(listenfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+    perror("Bind error");
     assert(ret != -1);
 
     ret = listen(listenfd, 5);

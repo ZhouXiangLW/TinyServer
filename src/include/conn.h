@@ -4,10 +4,7 @@
 #include <sys/socket.h>
 #include <iostream>
 
-
 using namespace std;
-
-#endif // !CONN_H
 
 class connection
 {
@@ -31,3 +28,5 @@ void connection::process()
 {
     cout << "Handle the connection from socket " << m_socketfd << endl;
 }
+
+#endif // !CONN_H
