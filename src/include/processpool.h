@@ -14,6 +14,7 @@
 #include <string.h>
 #include <assert.h>
 #include <netinet/in.h>
+#include "systools.h"
 /*
 ** 描述进程池中的一个子进程
 ** @m_pid: 子进程pid
@@ -31,7 +32,7 @@ template<typename T>
 class processpool
 {
 public:
-    static processpool<T>* create(int listenfd, int process_num = 8)
+    static processpool<T>* create(int listenfd, int process_num = 4)
     {
         if (!m_instance) {
             m_instance = new processpool<T>(listenfd, process_num);
@@ -85,7 +86,6 @@ static void sig_handler(int sig)
 {
     int save_errno = errno;
     int msg = sig;
-    printf("sig is %d\n", sig);
     send(sig_pipefd[1], (char*)&msg, 1, 0);
     errno = save_errno;
 }
@@ -100,29 +100,6 @@ static void addsig(int sig, void(handler)(int), bool restart = true)
     }
     sigfillset(&sa.sa_mask);
     sigaction(sig, &sa, NULL);
-}
-
-static int setnoblocking(int fd)
-{
-    int old_option = fcntl(fd, F_GETFL);
-    int new_option = old_option | O_NONBLOCK;
-    fcntl(fd, F_SETFL, new_option);
-    return old_option;
-}
-
-static void addfd(int epollfd, int fd)
-{
-    epoll_event event;
-    event.data.fd = fd;
-    event.events = EPOLLIN | EPOLLET;
-    epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event);
-    setnoblocking(fd);
-}
-
-static void removefd(int epollfd, int fd)
-{
-    epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, 0);
-    close(fd);
 }
 
 template<typename T>
@@ -218,7 +195,6 @@ void processpool<T>::run_parent()
                 int sig;
                 char signals[1024];
                 ret = recv(sig_pipefd[0], signals, sizeof(signals), 0);
-                printf("Handle signals : %d, %s\n", ret, signals);
                 if (ret < 0) {
                     continue;
                 } else {
@@ -244,17 +220,17 @@ void processpool<T>::run_parent()
                                         m_stop = false;
                                     }
                                 }
+                                if (m_stop) printf("Parent will exit!");
                             }
                             case SIGTERM:
                             case SIGINT: {
-                                printf("kill all the child now!\n");
+                                printf("Receive signal SIGINT\n");
                                 for (int i = 0; i < m_process_number; i++) {
                                     int pid = m_sub_process[i].m_pid;
                                     if (pid != -1) {
                                         kill(pid, SIGINT);
                                     }
                                 }
-                                printf("All children had been killed\n");
                             }
                             default: break;
                         }

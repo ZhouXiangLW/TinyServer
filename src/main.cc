@@ -15,6 +15,14 @@ int main()
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+
+    int on=1;  
+    if((setsockopt(listenfd,SOL_SOCKET,SO_REUSEADDR,&on,sizeof(on)))<0)  
+    {  
+        perror("setsockopt failed");  
+        exit(EXIT_FAILURE);  
+    }  
     
     ret = bind(listenfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
     perror("Bind error");
