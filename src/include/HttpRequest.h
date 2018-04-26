@@ -22,6 +22,7 @@ public:
     void displayRequest();
     string getRequestBody() { return _requestBody; }
     void setRequestBody(string requestBody) { _requestBody = requestBody; }
+    string getRequestString();
 };
 
 void HttpRequest::addHeader(string key, string value)
@@ -42,12 +43,19 @@ string HttpRequest::getHeader(string key)
     return "";
 }
 
+string HttpRequest::getRequestString()
+{
+    return _method + "\r\n" +
+           _url + "\r\n" +
+           _requestBody;
+}
+
 void HttpRequest::setUrl(string url)
 {
     _url = url;
 }
 
-void HttpRequest::setMethod(string method)
+void HttpRequest::setMethod(string method)  
 {
     _method = method;
 }

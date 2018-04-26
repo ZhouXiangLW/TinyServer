@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <iostream>
 #include "HttpRequest.h"
+#include "HttpResponse.h"
 #include "systools.h"
 
 using namespace std;
@@ -18,6 +19,7 @@ private:
     int _epollfd;
     int _socketfd;
     HttpRequest _request;
+    HttpResponse * _resopnse;
     static const int BUFFER_SIZE = 1024;
     struct sockaddr_in _address;
     char _buffer[BUFFER_SIZE];
@@ -52,6 +54,8 @@ void connection::process()
     if (_httpStatus == REQUEST_OK) {
         cout << "read request complete: " << endl;
         _request.displayRequest();
+        _resopnse = new HttpResponse(_request);
+        _resopnse->_getResponse();
     }
 }
 
