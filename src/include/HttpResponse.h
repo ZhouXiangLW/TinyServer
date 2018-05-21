@@ -15,7 +15,7 @@ public:
     void _getResponse();
 
 private:
-    const string CGI_FILE = "../www/cgi.py";
+    const string CGI_FILE = "../www/__source__/cgi.py";
     const int STDIN = 0;
     const int STDOUT = 1;
     HttpRequest _request;
@@ -69,8 +69,6 @@ void HttpResponse::_getResponse()
         _statusCode = SERVER_ERROR;
     }
 
-    int responseTextLength;
-
     pid = fork();
     if (pid == 0) {
         dup2(cppToPy[0], STDIN);
@@ -87,25 +85,31 @@ void HttpResponse::_getResponse()
         close(cppToPy[0]);
         close(pyToCpp[1]);
         if (_requetBody.size() > 0) {
+            // 把Request中部分内容发送到CGI程序
             int ret = write(cppToPy[1], _request.getRequestString().c_str(), _request.getRequestString().size());
-            std::cout << "ret: " << ret << std::endl;
             if (ret < 0) {
                 perror("Send msg to CGI error");
             }
-            char * respBuf = (char *)malloc(responseTextLength);
-            memset(respBuf, 0, responseTextLength);
+            // 获取CGI程序返回Response的长度
             char * lenBuf = (char *)malloc(10);
             memset(lenBuf, 0, 10);
             if (read(pyToCpp[0], lenBuf, 10) < 0) {
                 perror("recive msg from cgi error");
             }
-            cout << "Response Length: " << stoi(lenBuf) << endl;
+
+            // 获取CGI程序返回Response的内容
+            int responseTextLength = stoi(lenBuf);
+            char * respBuf = (char *)malloc(responseTextLength);
+            memset(respBuf, 0, responseTextLength);
             if (read(pyToCpp[0], respBuf, responseTextLength) < 0) {
                 perror("recive msg from cgi error");
             }
             _responseText = string(respBuf);
             delete respBuf;
+            
+            
 
+            //关闭管道
             close(cppToPy[1]);
             close(pyToCpp[0]);
 

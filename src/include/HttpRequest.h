@@ -47,6 +47,7 @@ string HttpRequest::getRequestString()
 {
     return _method + "\r\n" +
            _url + "\r\n" +
+           getHeader("accept") + "\r\n" +
            _requestBody;
 }
 
