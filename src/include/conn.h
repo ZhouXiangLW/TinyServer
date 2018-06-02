@@ -50,12 +50,13 @@ void connection::process()
     if (_httpStatus != REQUEST_OK) {
         _read();
     }
-    cout << _httpStatus << endl;
     if (_httpStatus == REQUEST_OK) {
-        cout << "read request complete: " << endl;
         _request.displayRequest();
         _resopnse = new HttpResponse(_request);
-        _resopnse->_getResponse();
+        _resopnse->getResponse();
+        cout << _resopnse->getResponseText().c_str() << endl;
+        int ret = send(_socketfd, _resopnse->getResponseText().c_str(), _resopnse->getResponseText().size() * 2, 0);
+        cout << "send: " << ret << endl;
     }
 }
 
@@ -67,8 +68,11 @@ void connection::_read()
         idx = _readIndex;
         ret = recv(_socketfd, _buffer + idx, BUFFER_SIZE - 1 - idx, 0);
         if (ret < 0) {
-            if (errno != EAGAIN) removefd(_epollfd, _socketfd);
-            _httpStatus = REQUEST_REDING_HEADER;
+            if (errno != EAGAIN) {
+                removefd(_epollfd, _socketfd);
+            } else {
+                _httpStatus = REQUEST_REDING_HEADER;
+            }
             break;
         } else if (ret == 0) {
             removefd(_epollfd, _socketfd);
@@ -85,19 +89,14 @@ void connection::_read()
 
 HttpStatus connection::_getHeaderStatus()
 {
-    cout << strlen(_buffer) << endl;
-    cout << _buffer[strlen(_buffer) - 5] << endl;
     for (int i = 0; i <= strlen(_buffer) - 4; i++) {
         if (_buffer[i] == '\r' && _buffer[i + 1] == '\n' && _buffer[i + 2] == '\r' && _buffer[i + 3] == '\n') {
             _httpStatus = REQUEST_HEADER_OK;
             _headerEndIndex = i;
-            cout << "Header Ok" << endl;
             return _httpStatus;
         }
     }
     _httpStatus = REQUEST_REDING_HEADER;
-    cout << "Reading header" << endl;
-    cout << _buffer << endl;
     return _httpStatus;
 }
 
@@ -136,7 +135,6 @@ void connection::_parseHeader()
                 value += (":" + res[i]);
             }
         }
-        cout << "Get header: " << key << ": " << value << endl;
         _request.addHeader(key, value);
     }
 }
@@ -150,12 +148,9 @@ void connection::_parseReuest()
         _httpStatus = REQUEST_OK;
         return;
     }
-    // vector<string> headerStrs = split(string(_buffer), "\r\n");
     int contentLength = stoi(_request.getHeader("content-length"));
     string body(&_buffer[_headerEndIndex + 4]);
     int readContentLength = body.size();
-    cout << "body: " << body  << ": " << readContentLength << endl;
-
     
     if (contentLength != readContentLength) {
         _httpStatus = REQUEST_READING_BODY;

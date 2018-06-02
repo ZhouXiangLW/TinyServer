@@ -21,10 +21,3 @@ class HttpReuqest:
         for p in param_list:
             res = p.split('=')
             self.params[res[0]] = res[1]
-
-
-if __name__ == '__main__':
-    request = HttpReuqest('GET', '/login?name=zx&password=123123')
-    print(request.method)
-    for k, v in request.params.items():
-        print(k + ": " + v)
